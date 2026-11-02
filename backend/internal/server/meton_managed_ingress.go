@@ -15,6 +15,7 @@ func metonManagedIngress() gin.HandlerFunc {
 		"GET /api/v1/admin/settings/admin-api-keys": true, "POST /api/v1/admin/settings/admin-api-keys": true,
 		"DELETE /api/v1/admin/settings/admin-api-keys/:id": true,
 		"POST /api/v1/admin/meton/managed-accounts":        true, "GET /api/v1/admin/meton/managed-accounts/:operation": true,
+		"POST /api/v1/admin/meton/managed-keys": true, "GET /api/v1/admin/meton/managed-keys/:operation": true,
 	}
 	return func(c *gin.Context) {
 		route := c.FullPath()

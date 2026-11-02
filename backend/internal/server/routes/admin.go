@@ -303,6 +303,8 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	if service.MetonManagedBuild {
 		admin.POST("/meton/managed-accounts", h.Admin.User.MetonManaged)
 		admin.GET("/meton/managed-accounts/:operation", h.Admin.User.MetonManaged)
+		admin.POST("/meton/managed-keys", h.Admin.User.MetonManagedKey)
+		admin.GET("/meton/managed-keys/:operation", h.Admin.User.MetonManagedKey)
 	}
 	users := admin.Group("/users")
 	{

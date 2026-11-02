@@ -20,3 +20,6 @@ backend/migrations/*.sql text eol=lf
 
 # Dockerfile
 Dockerfile text eol=lf
+
+# Meton nested migrations use the same LF bytes for the source archive and database checksum.
+backend/migrations/meton/*.sql text eol=lf
