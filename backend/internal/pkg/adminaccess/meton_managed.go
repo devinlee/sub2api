@@ -8,6 +8,7 @@ func init() {
 		permissionDefinition{Permission{"meton.managed.create", "建立托管个人账户", "Meton", "global"}, []string{"POST /meton/managed-accounts"}},
 		permissionDefinition{Permission{"meton.managed.read", "只读托管原创建", "Meton", "global"}, []string{"GET /meton/managed-accounts/:operation"}},
 		permissionDefinition{Permission{"meton.keys.issue", "签发托管会话 Key", "Meton", "global"}, []string{"POST /meton/managed-keys"}},
-		permissionDefinition{Permission{"meton.keys.inspect", "只读原会话 Key 状态", "Meton", "global"}, []string{"GET /meton/managed-keys/:operation"}},
+		permissionDefinition{Permission{"meton.keys.inspect", "只读原会话 Key 状态", "Meton", "global"}, []string{"GET /meton/managed-keys/:operation", "GET /meton/managed-keys/:operation/retirement"}},
+		permissionDefinition{Permission{"meton.keys.rotate", "按需停用原会话 Key", "Meton", "global"}, []string{"POST /meton/managed-keys/:operation/retirement"}},
 	)
 }
