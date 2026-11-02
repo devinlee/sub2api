@@ -300,6 +300,10 @@ func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if service.MetonManagedBuild {
+		admin.POST("/meton/managed-accounts", h.Admin.User.MetonManaged)
+		admin.GET("/meton/managed-accounts/:operation", h.Admin.User.MetonManaged)
+	}
 	users := admin.Group("/users")
 	{
 		users.GET("", h.Admin.User.List)
