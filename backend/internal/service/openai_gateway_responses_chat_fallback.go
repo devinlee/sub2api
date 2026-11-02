@@ -239,6 +239,11 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 		writeEvents(events)
 	})
 
+	// 干净 EOF 只证明传输结束；必须同时看到业务终态和 DONE，才能补出 Responses 完成事件。
+	// 否则保留已经读到的用量并返回明确的读流错误，不能生成成功或触发另一笔生成。
+	if scan.Err == nil && (!scan.SawDone || strings.TrimSpace(state.FinishReason) == "") {
+		scan.Err = ErrOpenAIUpstreamStreamTruncated
+	}
 	if scan.Err != nil {
 		return &OpenAIForwardResult{
 			RequestID:                   requestID,
@@ -253,7 +258,7 @@ func (s *OpenAIGatewayService) streamChatCompletionsAsResponses(
 			Stream:                      true,
 			Duration:                    time.Since(startTime),
 			FirstTokenMs:                scan.FirstTokenMs,
-		}, fmt.Errorf("stream usage incomplete: %w", scan.Err)
+		}, newOpenAIUpstreamStreamReadError(scan.Err)
 	}
 	if err := state.ValidateToolCallArguments(); err != nil {
 		return &OpenAIForwardResult{
