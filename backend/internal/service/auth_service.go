@@ -1418,6 +1418,10 @@ func (s *AuthService) GenerateToken(ctx context.Context, user *User) (string, er
 
 // generateAccessToken 生成带会话 ID 与绑定指纹的 access token。
 func (s *AuthService) generateAccessToken(user *User, sessionID, bindingHash string) (string, error) {
+	// 专用实例只允许管理员使用原生 Web 登录。即使旧配置或刷新缓存仍在，也不能为普通用户续出 JWT。
+	if MetonManagedBuild && (user == nil || !user.IsAdmin()) {
+		return "", ErrInvalidCredentials
+	}
 	now := time.Now()
 	var expiresAt time.Time
 	if s.cfg.JWT.AccessTokenExpireMinutes > 0 {
@@ -1835,6 +1839,9 @@ func (s *AuthService) RefreshTokenPair(ctx context.Context, refreshToken string)
 	}
 
 	// 会话绑定检查：IP/UA 任一变化即撤销整个会话家族。
+	if MetonManagedBuild && !user.IsAdmin() {
+		return nil, ErrRefreshTokenInvalid
+	}
 	// data.BindingHash 为空表示功能开启前签发的旧会话，放行并在轮转时补齐绑定。
 	if s.settingService != nil && s.settingService.IsSessionBindingEnabled(ctx) && data.BindingHash != "" {
 		if current := sessionBindingHashFromContext(ctx); current != "" && current != data.BindingHash {

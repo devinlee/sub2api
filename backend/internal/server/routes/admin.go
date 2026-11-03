@@ -307,6 +307,9 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		admin.GET("/meton/managed-keys/:operation", h.Admin.User.MetonManagedKey)
 		admin.POST("/meton/managed-keys/:operation/retirement", h.Admin.User.MetonKeyRetirement)
 		admin.GET("/meton/managed-keys/:operation/retirement", h.Admin.User.MetonKeyRetirement)
+		admin.POST("/meton/session-closures/:operation", h.Admin.User.MetonSessionClosure)
+		admin.GET("/meton/session-closures/:operation", h.Admin.User.MetonSessionClosure)
+		admin.GET("/meton/session-closures/:operation/keys/:binding", h.Admin.User.MetonSessionClosure)
 	}
 	users := admin.Group("/users")
 	{

@@ -79,6 +79,11 @@ func jwtAuth(
 			return
 		}
 
+		// 已签发的旧用户 JWT 在专用实例也不能进入个人 Web 路径。每次依真实用户角色判定。
+		if service.MetonManagedBuild && !user.IsAdmin() {
+			AbortWithError(c, 403, "METON_WEB_RESTRICTED", "native user web access unavailable")
+			return
+		}
 		// 检查用户状态
 		if !user.IsActive() {
 			AbortWithError(c, 401, "USER_INACTIVE", "User account is not active")
