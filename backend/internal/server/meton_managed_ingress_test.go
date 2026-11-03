@@ -22,6 +22,9 @@ func TestMetonManagedIngressDoesNotExposeNativeWrites(t *testing.T) {
 		{"POST", "/api/v1/auth/register", 403}, {"POST", "/api/v1/auth/oauth/google/create-account", 403}, {"POST", "/api/v1/keys", 403},
 		{"POST", "/api/v1/admin/users", 403}, {"POST", "/api/v1/admin/users/11/balance", 403}, {"POST", "/v1/chat/completions", 403},
 		{"GET", "/api/v1/admin/users", 403}, {"POST", "/api/v1/admin/meton/managed-accounts/alias", 403},
+		{"GET", "/api/v1/admin/meton/managed-accounts/:operation/funds", 200},
+		{"POST", "/api/v1/payment/orders", 403}, {"POST", "/api/v1/payment/orders/12/refund", 403},
+		{"POST", "/api/v1/redeem", 403}, {"POST", "/api/v1/promo-codes/redeem", 403}, {"POST", "/v1/responses", 403},
 	}
 	for _, p := range paths {
 		r.Handle(p.verb, p.route, func(c *gin.Context) { c.String(200, "ok") })
