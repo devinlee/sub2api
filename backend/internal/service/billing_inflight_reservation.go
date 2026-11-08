@@ -298,6 +298,10 @@ func (s *BillingCacheService) reserveInflightScope(ctx context.Context, res *Inf
 }
 
 func (s *BillingCacheService) reserveInflight(ctx context.Context, user *User, group *Group, subscription *UserSubscription, estimate float64, renew, capped bool) (*InflightReservation, error) {
+	// 受控来源必须取得持久预占，Redis 故障或没有缓存不能被旧通道解释为可派发。
+	if MetonManagedBuild {
+		return nil, ErrMetonClosed
+	}
 	cfg, ok := s.inflightReservationConfig()
 	if !ok || user == nil {
 		return nil, nil

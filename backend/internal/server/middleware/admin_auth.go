@@ -248,7 +248,8 @@ func authenticateScopedAdminRequest(c *gin.Context, key string, settings *servic
 		AbortWithError(c, 401, "INVALID_ADMIN_KEY", "Invalid admin API key")
 		return
 	}
-	principal := &adminaccess.Principal{KeyID: item.ID, KeyName: item.Name, CreatorID: item.CreatedBy, Policy: item.Policy}
+	principal := &adminaccess.Principal{KeyID: item.ID, KeyName: item.Name, CreatorID: item.CreatedBy, Policy: item.Policy,
+		KeyRevision: item.UpdatedAt, KeyExpiresAt: item.ExpiresAt}
 	c.Request = c.Request.WithContext(adminaccess.WithPrincipal(c.Request.Context(), principal))
 	c.Set(string(ContextKeyUser), AuthSubject{UserID: user.ID, Concurrency: user.Concurrency})
 	c.Set(string(ContextKeyUserRole), user.Role)

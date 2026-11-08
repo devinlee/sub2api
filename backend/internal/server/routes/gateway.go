@@ -30,6 +30,14 @@ func RegisterGatewayRoutes(
 	compositeResolver *service.CompositeRouteResolver,
 	cfg *config.Config,
 ) {
+	if service.MetonManagedBuild {
+		// 只注册两个已装配的原文本入口；原生别名、媒体、WebSocket 不继承许可。
+		if h != nil && h.MetonText != nil && h.OpenAIGateway != nil {
+			r.POST("/v1/responses", h.MetonText, middleware.GroupModelAllowlist(), h.OpenAIGateway.Responses)
+			r.POST("/v1/chat/completions", h.MetonText, middleware.GroupModelAllowlist(), h.OpenAIGateway.ChatCompletions)
+		}
+		return
+	}
 	bodyLimit := middleware.RequestBodyLimit(cfg.Gateway.MaxBodySize)
 	textBodyLimit := middleware.RequestBodyLimit(cfg.Gateway.TextMaxBodySize)
 	clientRequestID := middleware.ClientRequestID()

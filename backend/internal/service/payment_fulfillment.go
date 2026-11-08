@@ -38,6 +38,9 @@ type paymentFulfillmentLease struct {
 // --- Payment Notification & Fulfillment ---
 
 func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string) error {
+	if MetonManagedBuild {
+		return ErrMetonClosed
+	}
 	if n.Status != payment.NotificationStatusSuccess {
 		return nil
 	}
@@ -281,6 +284,9 @@ func (s *PaymentService) rejectUnsupportedOrderType(ctx context.Context, o *dben
 }
 
 func (s *PaymentService) ExecuteBalanceFulfillment(ctx context.Context, oid int64) error {
+	if MetonManagedBuild {
+		return ErrMetonClosed
+	}
 	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
 	if err != nil {
 		return infraerrors.NotFound("NOT_FOUND", "order not found")
@@ -566,6 +572,9 @@ func (s *PaymentService) sendSubscriptionPurchaseSuccessNotification(ctx context
 }
 
 func (s *PaymentService) ExecuteSubscriptionFulfillment(ctx context.Context, oid int64) error {
+	if MetonManagedBuild {
+		return ErrMetonClosed
+	}
 	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
 	if err != nil {
 		return infraerrors.NotFound("NOT_FOUND", "order not found")

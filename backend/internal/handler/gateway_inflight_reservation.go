@@ -71,6 +71,13 @@ func reserveInflightBalanceCtx(
 	subscription *service.UserSubscription,
 	req service.InflightEstimateRequest,
 ) (context.Context, func(), error) {
+	if service.MetonManagedBuild {
+		// 不运行原生近似估价及 Redis 预扣；这份准入不能跳过网络出口的持久来源 H。
+		if subscription != nil || req.Kind != service.InflightEstimateToken || req.SearchCalls != 0 || !service.MetonTextAdmitted(ctx, apiKey) {
+			return ctx, inflightNoop, service.ErrMetonClosed
+		}
+		return ctx, inflightNoop, nil
+	}
 	if billing == nil || estimator == nil || apiKey == nil || apiKey.User == nil || !billing.InflightReservationEnabled() {
 		return ctx, inflightNoop, nil
 	}

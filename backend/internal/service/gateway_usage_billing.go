@@ -354,6 +354,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 }
 
 func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog, p *postUsageBillingParams, deps *billingDeps, repo UsageBillingRepository) (bool, error) {
+	// 旧接口没有受理号和来源分配。缺仓储、缺原 ID、简易或订阅模式都不能走旧总额扣款。
+	if MetonManagedBuild {
+		return false, ErrMetonClosed
+	}
 	if p == nil || deps == nil {
 		return false, nil
 	}

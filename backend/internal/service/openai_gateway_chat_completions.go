@@ -72,7 +72,11 @@ func (s *OpenAIGatewayService) forwardAsChatCompletions(
 	promptCacheKey string,
 	defaultMappedModel string,
 	compatPromptCacheTenantIsolated bool,
-) (*OpenAIForwardResult, error) {
+) (forwardResult *OpenAIForwardResult, forwardErr error) {
+	defer func() { forwardErr = metonModelForwardError(ctx, forwardErr) }()
+	if err := metonModelForwardAllowed(ctx, account, s.pluginManager); err != nil {
+		return nil, err
+	}
 	rememberOpenCodeInboundBody(c, body)
 	beginUpstreamResponseModelObservation(c)
 	ClearActualOpenAIUpstreamEndpoint(c)

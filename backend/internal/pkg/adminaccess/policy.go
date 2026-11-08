@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 type Rule struct {
@@ -23,10 +24,12 @@ type Policy struct {
 }
 
 type Principal struct {
-	KeyID     string
-	KeyName   string
-	CreatorID int64
-	Policy    Policy
+	KeyRevision  time.Time  `json:"-"`
+	KeyExpiresAt *time.Time `json:"-"`
+	KeyID        string
+	KeyName      string
+	CreatorID    int64
+	Policy       Policy
 }
 
 type Account struct {

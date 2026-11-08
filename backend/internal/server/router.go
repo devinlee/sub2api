@@ -38,7 +38,7 @@ func SetupRouter(
 	redisClient *redis.Client,
 ) *gin.Engine {
 	if service.MetonManagedBuild {
-		r.Use(metonManagedIngress())
+		r.Use(metonManagedIngress(handlers != nil && handlers.MetonText != nil))
 	}
 	middleware2.SetIngressRejectRecorder(opsService)
 	// 缓存 iframe 页面的 origin 列表，用于动态注入 CSP frame-src

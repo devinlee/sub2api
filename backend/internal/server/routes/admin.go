@@ -2,6 +2,7 @@
 package routes
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/domain/metonmodel"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -301,9 +302,38 @@ func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 
 func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	if service.MetonManagedBuild {
+		admin.GET(metonmodel.FinancialRoute, h.Admin.User.MetonFinancialObservation)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/observe", h.Admin.User.MetonResultObserve)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/proof", h.Admin.User.MetonResultProof)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/apply", h.Admin.User.MetonResultApply)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/resolution", h.Admin.User.MetonResultResolution)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall/apply", h.Admin.User.MetonShortfallApply)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall/resolution", h.Admin.User.MetonShortfallResolution)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/approve", h.Admin.User.RestoredShortfallHandler("approve"))
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/apply", h.Admin.User.RestoredShortfallHandler("apply"))
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/resolution", h.Admin.User.RestoredShortfallHandler("resolution"))
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/original", h.Admin.User.RestoredShortfallHandler("original"))
+		for _, action := range []string{"basis", "approve", "apply", "resolution"} {
+			admin.POST(metonmodel.CorrectionRoute+action, h.Admin.User.CorrectionHandler(action))
+		}
+		admin.POST("/meton/managed-accounts/:operation/gift-closure/inspect", h.Admin.User.MetonGiftInspect)
+		admin.POST(service.RestoredGiftRoute+"inspect", h.Admin.User.RestoredGiftHandler("inspect"))
+		admin.POST(service.RestoredGiftRoute+"reconcile", h.Admin.User.RestoredGiftHandler("reconcile"))
+		admin.POST(service.RestoredGiftRoute+"terminate", h.Admin.User.RestoredGiftHandler("terminate"))
+		admin.POST("/meton/managed-accounts/:operation/statements/open", h.Admin.User.MetonStatementOpen)
+		admin.POST("/meton/managed-accounts/:operation/statements/page", h.Admin.User.MetonStatementPage)
+		admin.POST("/meton/managed-accounts/:operation/gift-closure/terminate", h.Admin.User.MetonGiftTerminate)
+		admin.POST("/meton/managed-accounts/:operation/gift-closure/reconcile", h.Admin.User.MetonGiftReconcile)
+		admin.GET("/meton/managed-accounts/:operation/model-calls/:caller/:request/execution", h.Admin.User.MetonModelExecution)
+		admin.POST("/meton/managed-accounts/:operation/model-calls/:caller/:request/cancel", h.Admin.User.MetonModelCancel)
+		admin.GET("/meton/managed-accounts/:operation/model-calls/:caller/:request", h.Admin.User.MetonModelRead)
+		admin.GET("/meton/managed-accounts/:operation/model-calls/:caller/:request/fees/:event", h.Admin.User.MetonModelRead)
+		admin.GET("/meton/managed-accounts/:operation/model-calls/:caller/:request/result", h.Admin.User.MetonModelResult)
 		admin.POST("/meton/managed-accounts", h.Admin.User.MetonManaged)
 		admin.GET("/meton/managed-accounts/:operation", h.Admin.User.MetonManaged)
 		admin.GET("/meton/managed-accounts/:operation/funds", h.Admin.User.MetonFunds)
+		admin.POST("/meton/managed-accounts/:operation/grants/:eligibility", h.Admin.User.MetonRegistrationGrant)
+		admin.GET("/meton/managed-accounts/:operation/grants/:eligibility", h.Admin.User.MetonRegistrationGrant)
 		admin.POST("/meton/managed-keys", h.Admin.User.MetonManagedKey)
 		admin.GET("/meton/managed-keys/:operation", h.Admin.User.MetonManagedKey)
 		admin.POST("/meton/managed-keys/:operation/retirement", h.Admin.User.MetonKeyRetirement)

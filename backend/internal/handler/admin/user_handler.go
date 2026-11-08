@@ -28,13 +28,22 @@ type UserWithConcurrency struct {
 
 // UserHandler handles admin user management
 type UserHandler struct {
-	adminService          service.AdminService
-	concurrencyService    *service.ConcurrencyService
-	userPlatformQuotaRepo service.UserPlatformQuotaRepository // T13 admin quota view
-	billingCache          service.BillingCache                // T17/T18 缓存失效（PUT/POST 路径）
-	totpService           *service.TotpService                // 角色提升为管理员的 step-up 门控
-	userService           *service.UserService
-	settingService        *service.SettingService // step-up 功能开关
+	restoredGiftControl      *service.MetonRestoredGiftControl
+	giftClosure              *service.MetonGiftClosure
+	statements               *service.MetonStatements
+	modelControl             *service.MetonModelControl
+	resultControl            *service.MetonResultControl
+	shortfallControl         *service.MetonShortfallControl
+	restoredShortfallControl *service.MetonRestoredShortfallControl
+	correctionControl        *service.MetonCorrectionControl
+	financialControl         *service.MetonFinancialControl
+	adminService             service.AdminService
+	concurrencyService       *service.ConcurrencyService
+	userPlatformQuotaRepo    service.UserPlatformQuotaRepository // T13 admin quota view
+	billingCache             service.BillingCache                // T17/T18 缓存失效（PUT/POST 路径）
+	totpService              *service.TotpService                // 角色提升为管理员的 step-up 门控
+	userService              *service.UserService
+	settingService           *service.SettingService // step-up 功能开关
 }
 
 // NewUserHandler creates a new admin user handler

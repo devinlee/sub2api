@@ -135,7 +135,13 @@ func InitEnt(cfg *config.Config) (*ent.Client, *sql.DB, error) {
 	// 这种方式比 Ent 的自动迁移更可控，支持复杂的迁移场景。
 	migrationCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+	var deployed bool
 	if err := initializeDatabaseWithRetry(migrationCtx, func(ctx context.Context) error {
+		var verifyErr error
+		deployed, verifyErr = verifyManagedDatabase(ctx, drv.DB(), cfg)
+		if deployed || verifyErr != nil {
+			return verifyErr
+		}
 		return applyMigrationsFS(ctx, drv.DB(), migrations.FS)
 	}); err != nil {
 		_ = drv.Close() // 迁移失败时关闭驱动，避免资源泄露
@@ -144,6 +150,14 @@ func InitEnt(cfg *config.Config) (*ent.Client, *sql.DB, error) {
 
 	// 创建 Ent 客户端，绑定到已配置的数据库驱动。
 	client := ent.NewClient(ent.Driver(drv))
+	if deployed {
+		// 本批运行身份已经只读校验当前秘密和数据库。不进入原生的补秘密或种子写入路径。
+		if err := cfg.Validate(); err != nil {
+			_ = drv.Close()
+			return nil, nil, err
+		}
+		return client, drv.DB(), nil
+	}
 
 	// 启动阶段：从配置或数据库中确保系统密钥可用。
 	if err := ensureBootstrapSecrets(migrationCtx, client, cfg); err != nil {

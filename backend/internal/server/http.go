@@ -22,6 +22,8 @@ import (
 
 // ProviderSet 提供服务器层的依赖
 var ProviderSet = wire.NewSet(
+	ProvideMetonTextIngress,
+	ProvideMetonResultControl,
 	ProvideRouter,
 	ProvideHTTPServer,
 )
@@ -42,7 +44,25 @@ func ProvideRouter(
 	settingService *service.SettingService,
 	compositeResolver *service.CompositeRouteResolver,
 	redisClient *redis.Client,
+	metonText *MetonTextIngress,
+	metonResult *MetonResultIngress,
 ) *gin.Engine {
+	if metonResult != nil && handlers.Admin != nil && handlers.Admin.User != nil {
+		handlers.Admin.User.SetMetonResultControl(metonResult.Control)
+		handlers.Admin.User.SetMetonShortfallControl(metonResult.Shortfall)
+		handlers.Admin.User.SetMetonRestoredShortfallControl(metonResult.RestoredShortfall)
+		handlers.Admin.User.SetMetonCorrectionControl(metonResult.Correction)
+		handlers.Admin.User.SetMetonFinancialControl(metonResult.Financial)
+	}
+	if metonText != nil {
+		handlers.MetonText = metonText.Authenticate
+		if handlers.Admin != nil && handlers.Admin.User != nil {
+			handlers.Admin.User.SetMetonModelControl(metonText.Control)
+			handlers.Admin.User.SetMetonGiftClosure(metonText.GiftClosure)
+			handlers.Admin.User.SetMetonRestoredGiftControl(metonText.RestoredGift)
+			handlers.Admin.User.SetMetonStatements(metonText.Statements)
+		}
+	}
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}

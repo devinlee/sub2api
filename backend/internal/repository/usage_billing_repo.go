@@ -20,6 +20,9 @@ func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBill
 }
 
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
+	if service.MetonManagedBuild {
+		return nil, service.ErrMetonClosed
+	}
 	if cmd == nil {
 		return &service.UsageBillingApplyResult{}, nil
 	}
@@ -126,6 +129,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 	cmd *service.BatchImageBalanceHoldCommand,
 	apply func(context.Context, *sql.Tx, *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error),
 ) (_ *service.BatchImageBalanceHoldResult, err error) {
+	if service.MetonManagedBuild {
+		return nil, service.ErrMetonClosed
+	}
 	if cmd == nil {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
