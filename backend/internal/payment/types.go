@@ -107,10 +107,12 @@ type CreatePaymentRequest struct {
 	PaymentType string // e.g. "alipay", "wxpay", "stripe"
 	Subject     string // Product description
 	NotifyURL   string // Webhook callback URL
-	ReturnURL   string // Browser redirect URL after payment
-	OpenID      string // WeChat JSAPI payer OpenID when available
-	ClientIP    string // Payer's IP address
-	IsMobile    bool   // Whether the request comes from a mobile device
+	// ExpiresAt 取自已保存的原订单。未设置时各渠道保留原有行为。
+	ExpiresAt *time.Time
+	ReturnURL string // Browser redirect URL after payment
+	OpenID    string // WeChat JSAPI payer OpenID when available
+	ClientIP  string // Payer's IP address
+	IsMobile  bool   // Whether the request comes from a mobile device
 	// AlipayMobilePrecreate routes a mobile Alipay request through
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool

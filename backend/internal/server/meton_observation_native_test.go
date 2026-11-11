@@ -10,7 +10,7 @@ import (
 /** 普通构建不读取托管观察配置、不创建观察器或模型入口。 */
 func TestRejectionObservationNativeClosed(t *testing.T) {
 	t.Setenv("METON_MANAGED_OBSERVATION_CONFIG", "not-a-file")
-	ingress, err := ProvideMetonTextIngress(nil, nil)
+	ingress, err := ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

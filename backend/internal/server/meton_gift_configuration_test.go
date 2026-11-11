@@ -20,7 +20,7 @@ func TestMetonGiftClosureConfiguration(t *testing.T) {
 		t.Setenv("METON_MANAGED_"+k, v)
 	}
 	t.Setenv("METON_MANAGED_GIFT_CONFIG", "")
-	empty, err := ProvideMetonTextIngress(nil, nil)
+	empty, err := ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil || empty.GiftClosure != nil {
 		t.Fatal("implicit gift module")
 	}
@@ -40,7 +40,7 @@ func TestMetonGiftClosureConfiguration(t *testing.T) {
 		if os.WriteFile(config, raw, 0600) != nil {
 			t.Fatal("write config")
 		}
-		value, e := ProvideMetonTextIngress(nil, nil)
+		value, e := ProvideMetonTextIngress(nil, nil, nil)
 		if e == nil {
 			defer value.Close()
 			defer value.Close()

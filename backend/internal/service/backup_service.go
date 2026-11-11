@@ -120,24 +120,26 @@ type BackupScheduleConfig struct {
 
 // BackupRecord 备份记录
 type BackupRecord struct {
-	ID               string                `json:"id"`
-	Status           string                `json:"status"`      // pending, running, completed, failed
-	BackupType       string                `json:"backup_type"` // postgres
-	FileName         string                `json:"file_name"`
-	S3Key            string                `json:"s3_key"`
-	Parts            []BackupPart          `json:"parts,omitempty"`
-	SizeBytes        int64                 `json:"size_bytes"`
-	TriggeredBy      string                `json:"triggered_by"` // manual, scheduled
-	ErrorMsg         string                `json:"error_message,omitempty"`
-	StartedAt        string                `json:"started_at"`
-	FinishedAt       string                `json:"finished_at,omitempty"`
-	ExpiresAt        string                `json:"expires_at,omitempty"`     // 过期时间
-	Progress         string                `json:"progress,omitempty"`       // "dumping", "uploading", ""
-	RestoreStatus    string                `json:"restore_status,omitempty"` // "", "running", "completed", "failed"
-	RestoreStartedAt string                `json:"restore_started_at,omitempty"`
-	RestoreError     string                `json:"restore_error,omitempty"`
-	RestoredAt       string                `json:"restored_at,omitempty"`
-	MonthlyArchive   *BackupMonthlyArchive `json:"monthly_archive,omitempty"`
+	ID                       string                `json:"id"`
+	Status                   string                `json:"status"`      // pending, running, completed, failed
+	BackupType               string                `json:"backup_type"` // postgres
+	FileName                 string                `json:"file_name"`
+	S3Key                    string                `json:"s3_key"`
+	Parts                    []BackupPart          `json:"parts,omitempty"`
+	SizeBytes                int64                 `json:"size_bytes"`
+	TriggeredBy              string                `json:"triggered_by"` // manual, scheduled
+	ErrorMsg                 string                `json:"error_message,omitempty"`
+	StartedAt                string                `json:"started_at"`
+	FinishedAt               string                `json:"finished_at,omitempty"`
+	ExpiresAt                string                `json:"expires_at,omitempty"`     // 过期时间
+	Progress                 string                `json:"progress,omitempty"`       // "dumping", "uploading", ""
+	RestoreStatus            string                `json:"restore_status,omitempty"` // "", "running", "completed", "failed"
+	RestoreStartedAt         string                `json:"restore_started_at,omitempty"`
+	RestoreError             string                `json:"restore_error,omitempty"`
+	RestoredAt               string                `json:"restored_at,omitempty"`
+	MonthlyArchive           *BackupMonthlyArchive `json:"monthly_archive,omitempty"`
+	MetonRetentionPinned     bool                  `json:"meton_retention_pinned,omitempty"`
+	MetonRetirementOperation string                `json:"meton_retirement_operation,omitempty"`
 }
 
 // BackupDownloadPart 描述一个可下载的备份分卷。
@@ -306,6 +308,10 @@ func (s *BackupService) recoverStaleRecords() {
 	for _, i := range stale {
 		if cleanupErr := s.cleanupStaleBackupObjects(ctx, &records[i]); cleanupErr != nil {
 			records[i].ErrorMsg = fmt.Sprintf("interrupted by server restart; cleanup failed, manual deletion may be required: %v", cleanupErr)
+			if MetonManagedBuild {
+				// 上传可能已经完成；保留原定位，普通管理员也不能据此删除。
+				records[i].ErrorMsg = fmt.Sprintf("interrupted by server restart; retained for controlled reconciliation: %v", cleanupErr)
+			}
 			logger.LegacyPrintf("service.backup", "[Backup] failed to clean stale backup objects for %s: %v", records[i].ID, cleanupErr)
 		}
 	}
@@ -919,6 +925,9 @@ func (s *BackupService) buildBackupPartKey(root string, index int) string {
 
 // RestoreBackup 从 S3 下载备份并流式恢复到数据库
 func (s *BackupService) RestoreBackup(ctx context.Context, backupID string) error {
+	if err := checkNativeBackupRestore(); err != nil {
+		return err
+	}
 	s.opMu.Lock()
 	if s.restoring {
 		s.opMu.Unlock()
@@ -982,6 +991,9 @@ func (s *BackupService) RestoreBackup(ctx context.Context, backupID string) erro
 
 // StartRestore 异步恢复备份，立即返回
 func (s *BackupService) StartRestore(ctx context.Context, backupID string) (*BackupRecord, error) {
+	if err := checkNativeBackupRestore(); err != nil {
+		return nil, err
+	}
 	if s.shuttingDown.Load() {
 		return nil, infraerrors.ServiceUnavailable("SERVER_SHUTTING_DOWN", "server is shutting down")
 	}
@@ -1055,6 +1067,13 @@ func (s *BackupService) StartRestore(ctx context.Context, backupID string) (*Bac
 
 // executeRestore 后台执行恢复
 func (s *BackupService) executeRestore(record *BackupRecord, objectStore BackupObjectStore) {
+	if err := checkNativeBackupRestore(); err != nil {
+		// 内部排队同样没有外部屏障，拒绝发生在下载或调用数据库恢复之前。
+		record.RestoreStatus = "failed"
+		record.RestoreError = err.Error()
+		_ = s.saveRestoreRecord(context.Background(), record)
+		return
+	}
 	ctx, cancel := context.WithTimeout(s.bgCtx, 30*time.Minute)
 	defer cancel()
 
@@ -1169,6 +1188,9 @@ func (s *BackupService) downloadBackupParts(ctx context.Context, objectStore Bac
 }
 
 func (s *BackupService) restoreArchive(ctx context.Context, archivePath string) error {
+	if err := checkNativeBackupRestore(); err != nil {
+		return err
+	}
 	archive, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("open restore archive: %w", err)
@@ -1223,6 +1245,9 @@ func (s *BackupService) DeleteArchivedBackup(ctx context.Context, backupID strin
 }
 
 func (s *BackupService) deleteBackup(ctx context.Context, backupID string, deleteArchived bool) error {
+	if err := checkNativeBackupRemoval(); err != nil {
+		return err
+	}
 	ctx, release, err := s.lockBackupRecordUpdates(ctx)
 	if err != nil {
 		return err
@@ -1418,6 +1443,21 @@ func (s *BackupService) saveRecordWithArchive(ctx context.Context, record *Backu
 	}
 	snapshot := *record
 	for _, existing := range records {
+		if existing.ID == record.ID && (existing.MetonRetentionPinned || existing.MetonRetirementOperation != "") &&
+			(existing.Status != record.Status || backupRetentionRecordDigest(existing) != backupRetentionRecordDigest(*record)) {
+			// 迟到进度只能补原记录，不能替换已保护副本或已认领目标的内容定位。
+			return ErrBackupRetirementUnavailable
+		}
+		if existing.ID == record.ID && existing.MetonRetirementOperation != "" {
+			snapshot.MetonRetirementOperation = existing.MetonRetirementOperation
+		}
+		if existing.ID == record.ID && existing.MetonRetentionPinned {
+			// 旧进度写者没有解除保留副本的权限。
+			snapshot.MetonRetentionPinned = true
+		}
+		if existing.ID == record.ID && existing.Status == "retired" {
+			return ErrBackupRetirementUnavailable
+		}
 		if existing.ID == record.ID && existing.MonthlyArchive != nil {
 			// Preserve durable protection when a progress/restore writer or retry
 			// holds an older record snapshot.
@@ -1429,6 +1469,12 @@ func (s *BackupService) saveRecordWithArchive(ctx context.Context, record *Backu
 	checkpoint, err := s.assignMonthlyArchive(ctx, &snapshot, schedule)
 	if err != nil {
 		return err
+	}
+	for _, existing := range records {
+		if existing.ID == record.ID && (existing.MetonRetentionPinned || existing.MetonRetirementOperation != "") &&
+			backupRetentionRecordDigest(existing) != backupRetentionRecordDigest(snapshot) {
+			return ErrBackupRetirementUnavailable
+		}
 	}
 
 	// 更新已有记录或追加
@@ -1468,6 +1514,9 @@ func (s *BackupService) saveRecordWithArchive(ctx context.Context, record *Backu
 func (s *BackupService) cleanupOldBackups(ctx context.Context, schedule *BackupScheduleConfig) error {
 	if schedule == nil {
 		return nil
+	}
+	if err := checkNativeBackupRemoval(); err != nil {
+		return err
 	}
 
 	ctx, release, err := s.lockBackupRecordUpdates(ctx)
@@ -1587,6 +1636,9 @@ func backupObjectKeys(record *BackupRecord) []string {
 
 // deleteBackupObjects 尝试删除记录关联的所有对象，并聚合删除错误。
 func (s *BackupService) deleteBackupObjects(ctx context.Context, record *BackupRecord) error {
+	if err := checkNativeBackupRemoval(); err != nil {
+		return err
+	}
 	if len(backupObjectKeys(record)) == 0 {
 		return nil
 	}
@@ -1606,6 +1658,10 @@ func (s *BackupService) deleteBackupObjects(ctx context.Context, record *BackupR
 }
 
 func deleteBackupObjectKeys(ctx context.Context, objectStore BackupObjectStore, record *BackupRecord) error {
+	// 上传应答丢失和恢复旧记录都可能抵达这里，不能只在 HTTP 删除入口检查。
+	if err := checkNativeBackupRemoval(); err != nil {
+		return err
+	}
 	keys := backupObjectKeys(record)
 	if len(keys) == 0 {
 		return nil

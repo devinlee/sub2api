@@ -18,7 +18,7 @@ func TestMetonStatementConfiguration(t *testing.T) {
 	for k, v := range map[string]string{"ENVIRONMENT": "s2-isolated", "SOURCE": "s2-managed", "EPOCH": "1", "FUNDS_MODE": "s2-source-v1", "CREATE_KEY_ID": strings.Repeat("1", 24), "READ_KEY_ID": strings.Repeat("2", 24), "STATEMENT_READ_KEY_ID": strings.Repeat("d", 24), "TEXT_CONFIG": "", "GIFT_CONFIG": "", "STATEMENT_CONFIG": ""} {
 		t.Setenv("METON_MANAGED_"+k, v)
 	}
-	entry, err := ProvideMetonTextIngress(nil, nil)
+	entry, err := ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil || entry.Statements != nil {
 		t.Fatal("default not closed")
 	}
@@ -33,7 +33,7 @@ func TestMetonStatementConfiguration(t *testing.T) {
 		t.Fatal("fixture write")
 	}
 	t.Setenv("METON_MANAGED_STATEMENT_CONFIG", file)
-	entry, err = ProvideMetonTextIngress(nil, nil)
+	entry, err = ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil || entry.Statements == nil || entry.Authenticate != nil || entry.GiftClosure != nil {
 		t.Fatal("query did not assemble", err)
 	}
@@ -48,7 +48,7 @@ func TestMetonStatementConfiguration(t *testing.T) {
 		if _, e = db.Exec(pair[0]); e != nil {
 			t.Fatal(e)
 		}
-		v, e := ProvideMetonTextIngress(nil, nil)
+		v, e := ProvideMetonTextIngress(nil, nil, nil)
 		_, restore := db.Exec(pair[1])
 		if restore != nil {
 			t.Fatal(restore)
@@ -59,7 +59,7 @@ func TestMetonStatementConfiguration(t *testing.T) {
 		}
 	}
 	t.Setenv("METON_MANAGED_EPOCH", "2")
-	if v, e := ProvideMetonTextIngress(nil, nil); e == nil {
+	if v, e := ProvideMetonTextIngress(nil, nil, nil); e == nil {
 		v.Close()
 		t.Fatal("old configuration admitted")
 	}
@@ -67,7 +67,7 @@ func TestMetonStatementConfiguration(t *testing.T) {
 	if os.WriteFile(dsn, []byte("host=127.0.0.1 dbname=s2_grants user=postgres sslmode=disable"), 0600) != nil {
 		t.Fatal("fixture write")
 	}
-	if v, e := ProvideMetonTextIngress(nil, nil); e == nil {
+	if v, e := ProvideMetonTextIngress(nil, nil, nil); e == nil {
 		v.Close()
 		t.Fatal("superuser admitted")
 	}

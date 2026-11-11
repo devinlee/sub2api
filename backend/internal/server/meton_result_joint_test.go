@@ -28,7 +28,7 @@ func TestMetonManagedResultJoint(t *testing.T) {
 /** 新入口必须真正经过托管白名单，不能因为只测处理器而漏掉生产入口的拒绝。 */
 func TestMetonResultIngress(t *testing.T) {
 	r := gin.New()
-	r.Use(metonManagedIngress(true))
+	r.Use(metonManagedIngress(metonIngressOptions{models: true}))
 	path := "/api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/result"
 	called := 0
 	r.Any(path, func(c *gin.Context) { called++; c.Status(204) })

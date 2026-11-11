@@ -2,14 +2,31 @@ package server
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/domain/metonmodel"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
 )
 
 // 专用候选从 Gin 已匹配的方法和路由逐项放行；注册/OAuth、用户 Key、余额、模型以及路径别名均无默认许可。
-func metonManagedIngress(modelEnabled ...bool) gin.HandlerFunc {
+type metonIngressOptions struct{ models, notifications bool }
+
+func metonManagedIngress(options ...metonIngressOptions) gin.HandlerFunc {
+	var enabled metonIngressOptions
+	if len(options) == 1 {
+		enabled = options[0]
+	}
 	ok := map[string]bool{
+		"POST /api/v1/admin/meton/backup-retirement/inspect":                                                                 true,
+		"POST /api/v1/admin/meton/backup-retirement/execute":                                                                 true,
+		"POST /api/v1/admin/meton/backup-retirement/reconcile":                                                               true,
+		"POST /api/v1/admin/meton/backup-retirement/resume":                                                                  true,
+		"POST /api/v1/admin/meton/cash-archive/retry":                                                                        true,
+		"POST /api/v1/admin/meton/cash-archive/review-context":                                                               true,
+		"POST /api/v1/admin/meton/cash-archive/review-record":                                                                true,
+		"POST /api/v1/admin/meton/cash-archive/review-result":                                                                true,
+		"POST /api/v1/admin/meton/cash-archive/retry-result":                                                                 true,
+		"POST /api/v1/admin/meton/cash-archive/original":                                                                     true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/approve":    true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/apply":      true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/shortfall-restoration/resolution": true,
@@ -26,6 +43,8 @@ func metonManagedIngress(modelEnabled ...bool) gin.HandlerFunc {
 		"POST /api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/apply":             true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/model-calls/:caller/:request/reconciliation/resolution":        true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/statements/open":                                               true,
+		"POST /api/v1/admin/meton/managed-accounts/:operation/cash-operations/read":                                          true,
+		"POST /api/v1/admin/meton/cash-archive/read":                                                                         true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/statements/page":                                               true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/gift-closure/inspect":                                          true,
 		"POST /api/v1/admin/meton/managed-accounts/:operation/gift-restoration/inspect":                                      true,
@@ -52,10 +71,22 @@ func metonManagedIngress(modelEnabled ...bool) gin.HandlerFunc {
 		"POST /api/v1/admin/meton/managed-accounts":        true, "GET /api/v1/admin/meton/managed-accounts/:operation": true,
 		"POST /api/v1/admin/meton/managed-keys": true, "GET /api/v1/admin/meton/managed-keys/:operation": true,
 	}
+	checkout := make(map[string]bool)
+	for _, action := range service.CheckoutActions() {
+		checkout["/api/v1/admin"+service.CheckoutRoute+action] = true
+	}
 	return func(c *gin.Context) {
 		route := c.FullPath()
-		if len(modelEnabled) == 1 && modelEnabled[0] && c.Request.Method == http.MethodPost &&
-			(route == "/v1/responses" || route == "/v1/chat/completions") && c.Request.URL.Path == route && c.Request.URL.RawPath == "" && c.Request.URL.RawQuery == "" && !c.Request.URL.ForceQuery {
+		if checkout[route] {
+			c.Header("Cache-Control", "no-store")
+			if c.Request.Method == http.MethodPost {
+				c.Next()
+				return
+			}
+		}
+		model := enabled.models && (route == "/v1/responses" || route == "/v1/chat/completions")
+		notice := enabled.notifications && route == service.NativeCashWebhook
+		if (model || notice) && c.Request.Method == http.MethodPost && c.Request.URL.RequestURI() == route {
 			c.Next()
 			return
 		}

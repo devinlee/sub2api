@@ -8,9 +8,11 @@ import (
 )
 
 type BackupHandler struct {
-	backupService *service.BackupService
-	userService   *service.UserService
-	imageStorage  *service.ImageStorageSettingService
+	backupService    *service.BackupService
+	userService      *service.UserService
+	imageStorage     *service.ImageStorageSettingService
+	retirement       *service.ManagedBackupRetirement
+	retirementBudget chan struct{}
 }
 
 func NewBackupHandler(backupService *service.BackupService, userService *service.UserService, imageStorage *service.ImageStorageSettingService) *BackupHandler {

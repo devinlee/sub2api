@@ -8,6 +8,9 @@ import (
 )
 
 func (s *BackupService) beginBackupRestore(ctx context.Context, id string) (*BackupRecord, error) {
+	if err := checkNativeBackupRestore(); err != nil {
+		return nil, err
+	}
 	ctx, release, err := s.lockBackupRecordUpdates(ctx)
 	if err != nil {
 		return nil, err
@@ -42,6 +45,11 @@ func (s *BackupService) beginBackupRestore(ctx context.Context, id string) (*Bac
 // full database restore may itself roll back settings and remove its own record,
 // so that completion keeps the existing explicit re-registration behavior.
 func (s *BackupService) saveRestoreRecord(ctx context.Context, record *BackupRecord) error {
+	if record.RestoreStatus == "completed" {
+		if err := checkNativeBackupRestore(); err != nil {
+			return err
+		}
+	}
 	ctx, release, err := s.lockBackupRecordUpdates(ctx)
 	if err != nil {
 		return err

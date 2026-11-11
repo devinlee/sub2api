@@ -56,11 +56,20 @@ func ProvideRouter(
 	}
 	if metonText != nil {
 		handlers.MetonText = metonText.Authenticate
+		if handlers.Admin != nil && handlers.Admin.Backup != nil {
+			handlers.Admin.Backup.SetMetonBackupRetirement(metonText.BackupRetirement)
+		}
+		if handlers.PaymentWebhook != nil {
+			handlers.PaymentWebhook.SetManagedCash(metonText.CashNotifications)
+		}
 		if handlers.Admin != nil && handlers.Admin.User != nil {
 			handlers.Admin.User.SetMetonModelControl(metonText.Control)
 			handlers.Admin.User.SetMetonGiftClosure(metonText.GiftClosure)
 			handlers.Admin.User.SetMetonRestoredGiftControl(metonText.RestoredGift)
 			handlers.Admin.User.SetMetonStatements(metonText.Statements)
+			handlers.Admin.User.SetMetonCashOperations(metonText.CashOperations)
+			handlers.Admin.User.SetMetonCashArchive(metonText.CashArchive)
+			handlers.Admin.User.SetMetonCheckout(metonText.Checkout)
 		}
 	}
 	if cfg.Server.Mode == "release" {

@@ -335,7 +335,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)
 	auditLogMiddleware := middleware.NewAuditLogMiddleware(auditLogService)
 	stepUpAuthMiddleware := middleware.NewStepUpAuthMiddleware(totpService, userService, settingService)
-	metonTextIngress, err := server.ProvideMetonTextIngress(apiKeyService, groupRepository)
+	metonTextIngress, err := server.ProvideMetonTextIngress(apiKeyService, groupRepository, paymentConfigService)
 	if err != nil {
 		return nil, err
 	}

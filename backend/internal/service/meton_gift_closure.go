@@ -160,7 +160,7 @@ func giftReceipt(raw []byte, q MetonGiftRequest) (*MetonGiftReceipt, error) {
 		return nil, ErrMetonClosed
 	}
 	switch v.Funds.State {
-	case "empty", "gift_only", "cash_review", "source_review", "settlement_pending", "scope_unknown":
+	case "empty", "gift_only", "gift_scope_ready", "cash_review", "source_review", "settlement_pending", "scope_unknown":
 	default:
 		return nil, ErrMetonClosed
 	}
@@ -177,7 +177,7 @@ func giftReceipt(raw []byte, q MetonGiftRequest) (*MetonGiftReceipt, error) {
 			return nil, ErrMetonClosed
 		}
 		result.Final, result.Cutoff = final, t.Cutoff
-	} else if v.Effects != 0 || v.Retired != "0.00000000" || q.Final != nil && (v.Funds.State == "empty" || v.Funds.State == "gift_only") {
+	} else if v.Effects != 0 || v.Retired != "0.00000000" || q.Final != nil && (v.Funds.State == "empty" || v.Funds.State == "gift_only" || v.Funds.State == "gift_scope_ready") {
 		return nil, ErrMetonClosed
 	}
 	return result, nil

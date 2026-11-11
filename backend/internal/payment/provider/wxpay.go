@@ -72,11 +72,12 @@ var (
 )
 
 type Wxpay struct {
-	instanceID    string
-	config        map[string]string
-	mu            sync.Mutex
-	coreClient    *core.Client
-	notifyHandler *notify.Handler
+	instanceID     string
+	config         map[string]string
+	mu             sync.Mutex
+	coreClient     *core.Client
+	checkoutClient *http.Client
+	notifyHandler  *notify.Handler
 }
 
 const wxpayAPIv3KeyLength = 32
@@ -153,9 +154,13 @@ func (w *Wxpay) ensureClient() (*core.Client, error) {
 			WithMetadata(map[string]string{"key": "publicKey"})
 	}
 	verifier := verifiers.NewSHA256WithRSAPubkeyVerifier(w.config["publicKeyId"], *publicKey)
-	client, err := core.NewClient(context.Background(),
+	opts := []core.ClientOption{
 		option.WithMerchantCredential(w.config["mchId"], w.config["certSerial"], privateKey),
-		option.WithVerifier(verifier))
+		option.WithVerifier(verifier)}
+	if w.checkoutClient != nil {
+		opts = append(opts, option.WithHTTPClient(w.checkoutClient))
+	}
+	client, err := core.NewClient(context.Background(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("wxpay init client: %w", err)
 	}
@@ -242,17 +247,21 @@ func (w *Wxpay) prepayNative(ctx context.Context, c *core.Client, req payment.Cr
 	resp, _, err := wxpayNativePrepay(ctx, svc, native.PrepayRequest{
 		Appid: core.String(w.config["appId"]), Mchid: core.String(w.config["mchId"]),
 		Description: core.String(req.Subject), OutTradeNo: core.String(req.OrderID),
-		NotifyUrl: core.String(notifyURL),
-		Amount:    &native.Amount{Total: core.Int64(totalFen), Currency: &cur},
+		TimeExpire: req.ExpiresAt,
+		NotifyUrl:  core.String(notifyURL),
+		Amount:     &native.Amount{Total: core.Int64(totalFen), Currency: &cur},
 	})
 	if err != nil {
+		if w.checkoutClient != nil && w.verifiedCheckoutDecline(ctx, err) {
+			return nil, fmt.Errorf("%w: %w", payment.ErrNativePrepayDeclined, err)
+		}
 		return nil, fmt.Errorf("wxpay native prepay: %w", err)
 	}
-	codeURL := ""
-	if resp.CodeUrl != nil {
-		codeURL = *resp.CodeUrl
+	// 缺少支付码时渠道可能已经受理。交回错误，由原订单查单流程继续核对。
+	if resp == nil || resp.CodeUrl == nil || strings.TrimSpace(*resp.CodeUrl) == "" {
+		return nil, fmt.Errorf("wxpay native prepay: missing code_url")
 	}
-	return &payment.CreatePaymentResponse{TradeNo: req.OrderID, QRCode: codeURL}, nil
+	return &payment.CreatePaymentResponse{TradeNo: req.OrderID, QRCode: *resp.CodeUrl}, nil
 }
 
 func (w *Wxpay) prepayH5(ctx context.Context, c *core.Client, req payment.CreatePaymentRequest, notifyURL string, totalFen int64) (*payment.CreatePaymentResponse, error) {
@@ -389,17 +398,37 @@ func buildWxpayTransactionMetadata(tx *payments.Transaction) map[string]string {
 	return metadata
 }
 
-func (w *Wxpay) QueryOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {
+func (w *Wxpay) nativeOrder(ctx context.Context, tradeNo string) (*payments.Transaction, error) {
+	tx, result, err := w.nativeOrderResult(ctx, tradeNo)
+	if result != nil && result.Response != nil && result.Response.Body != nil {
+		result.Response.Body.Close()
+	}
+	return tx, err
+}
+
+/** nativeOrderResult 保留 SDK 验签的原响应，供已受理付款的后台只读核对使用。 */
+func (w *Wxpay) nativeOrderResult(ctx context.Context, tradeNo string) (*payments.Transaction, *core.APIResult, error) {
 	c, err := w.ensureClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	svc := native.NativeApiService{Client: c}
-	tx, _, err := svc.QueryOrderByOutTradeNo(ctx, native.QueryOrderByOutTradeNoRequest{
+	tx, result, err := svc.QueryOrderByOutTradeNo(ctx, native.QueryOrderByOutTradeNoRequest{
 		OutTradeNo: core.String(tradeNo), Mchid: core.String(w.config["mchId"]),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("wxpay query order: %w", err)
+		return nil, result, fmt.Errorf("wxpay query order: %w", err)
+	}
+	if tx == nil {
+		return nil, result, fmt.Errorf("wxpay query order: missing original transaction")
+	}
+	return tx, result, nil
+}
+
+func (w *Wxpay) QueryOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {
+	tx, err := w.nativeOrder(ctx, tradeNo)
+	if err != nil {
+		return nil, err
 	}
 	var amt float64
 	if tx.Amount != nil && tx.Amount.Total != nil {

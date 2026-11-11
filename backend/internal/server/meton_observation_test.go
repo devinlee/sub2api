@@ -121,7 +121,7 @@ func TestRejectionObservationManagedConfiguration(t *testing.T) {
 	observationEnvironment(t)
 	log := &observationLog{}
 	observationLogger(t, log)
-	ingress, err := ProvideMetonTextIngress(nil, nil)
+	ingress, err := ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestRejectionObservationManagedConfiguration(t *testing.T) {
 	for _, name := range []string{"GIFT", "STATEMENT", "TEXT"} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("METON_MANAGED_"+name+"_CONFIG", "not-a-file")
-			ingress, err := ProvideMetonTextIngress(nil, nil)
+			ingress, err := ProvideMetonTextIngress(nil, nil, nil)
 			if err == nil {
 				ingress.Close()
 				t.Fatal("invalid ingress accepted")
@@ -245,7 +245,7 @@ func TestRejectionObservationSlowLoggerAndHostClose(t *testing.T) {
 	defer release.Do(func() { close(log.release) })
 	observationLogger(t, log)
 	observationConfig(t)
-	ingress, err := ProvideMetonTextIngress(nil, nil)
+	ingress, err := ProvideMetonTextIngress(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

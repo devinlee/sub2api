@@ -28,6 +28,7 @@ type UserWithConcurrency struct {
 
 // UserHandler handles admin user management
 type UserHandler struct {
+	checkout                 *service.MetonCheckout
 	restoredGiftControl      *service.MetonRestoredGiftControl
 	giftClosure              *service.MetonGiftClosure
 	statements               *service.MetonStatements
@@ -37,6 +38,8 @@ type UserHandler struct {
 	restoredShortfallControl *service.MetonRestoredShortfallControl
 	correctionControl        *service.MetonCorrectionControl
 	financialControl         *service.MetonFinancialControl
+	cashOperations           *service.MetonCashOperations
+	cashArchive              *service.MetonCashArchive
 	adminService             service.AdminService
 	concurrencyService       *service.ConcurrencyService
 	userPlatformQuotaRepo    service.UserPlatformQuotaRepository // T13 admin quota view

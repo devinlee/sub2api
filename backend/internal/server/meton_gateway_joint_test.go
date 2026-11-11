@@ -406,7 +406,7 @@ func (f *jointFixture) setup(env string, rawCertificate []byte, upstream string)
 	router := gin.New()
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false
-	router.Use(metonManagedIngress(true))
+	router.Use(metonManagedIngress(metonIngressOptions{models: true}))
 	routes.RegisterGatewayRoutes(router, &handler.Handlers{OpenAIGateway: h, MetonText: middleware.MetonTextAuth(entry)}, nil, keys, nil, nil, nil, nil, cfg)
 	f.env = env
 	f.router = router

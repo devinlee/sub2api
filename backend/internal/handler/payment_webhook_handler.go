@@ -21,6 +21,7 @@ import (
 type PaymentWebhookHandler struct {
 	paymentService *service.PaymentService
 	registry       *payment.Registry
+	managedCash    *service.MetonCashNotifications
 }
 
 // maxWebhookBodySize is the maximum allowed webhook request body size (1 MB).
@@ -52,6 +53,10 @@ func (h *PaymentWebhookHandler) AlipayNotify(c *gin.Context) {
 // WxpayNotify handles WeChat Pay payment notifications.
 // POST /api/v1/payment/webhook/wxpay
 func (h *PaymentWebhookHandler) WxpayNotify(c *gin.Context) {
+	if service.MetonManagedBuild {
+		h.managedWxpayNotice(c)
+		return
+	}
 	h.handleNotify(c, payment.TypeWxpay)
 }
 

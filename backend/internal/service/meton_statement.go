@@ -29,7 +29,10 @@ type MetonStatementRequest struct {
 type MetonStatementStore interface {
 	Statement(context.Context, MetonManagedSource, MetonStatementRequest) (json.RawMessage, error)
 }
-type MetonStatements struct{ store MetonStatementStore }
+type MetonStatements struct {
+	store MetonStatementStore
+	cash  MetonCashStatementStore
+}
 
 /** StatementKeyID 查询身份不能兼任任何已登记的资金、会话或原创建权限。 */
 func (s MetonManagedSource) StatementKeyID() (string, bool) {
@@ -68,7 +71,7 @@ func NewMetonStatements(store MetonStatementStore) *MetonStatements {
 	if store == nil {
 		return nil
 	}
-	return &MetonStatements{store}
+	return &MetonStatements{store: store}
 }
 
 /** Read 前后复验来源和受限身份；来源切换或回执错归属时不交出旧账单。 */

@@ -21,7 +21,16 @@ type statementStore struct{ read *sql.DB }
 
 /** NewStatements 复用原权限校验，额外禁止读取裸表和兼任会话管理身份。 */
 func NewStatements(db *sql.DB) (*service.MetonStatements, error) {
-	if _, _, e := checkPoolPermissions(db, []string{StatementOpenFunction, StatementPageFunction}); e != nil {
+	return newStatements(db, false)
+}
+
+/** 原查询连接池只在显式配置时增加现金读取函数，仍不得读裸表或调用任何写函数。 */
+func newStatements(db *sql.DB, cash bool) (*service.MetonStatements, error) {
+	functions := []string{StatementOpenFunction, StatementPageFunction}
+	if cash {
+		functions = append(functions, CashStatementFunction)
+	}
+	if _, _, e := checkPoolPermissions(db, functions); e != nil {
 		return nil, e
 	}
 	if !giftPoolSeparate(db) {
@@ -35,6 +44,9 @@ func NewStatements(db *sql.DB) (*service.MetonStatements, error) {
  (has_table_privilege(current_user,c.oid,'SELECT') OR has_any_column_privilege(current_user,c.oid,'SELECT')))`).Scan(&safe)
 	if err != nil || !safe {
 		return nil, service.ErrMetonClosed
+	}
+	if cash {
+		return service.NewMetonStatementsWithCash(&statementStore{db}), nil
 	}
 	return service.NewMetonStatements(&statementStore{db}), nil
 }
@@ -72,6 +84,7 @@ type statementConfiguration struct {
 	Source        string `json:"source"`
 	Epoch         int64  `json:"epoch"`
 	ReadDSNFile   string `json:"read_dsn_file"`
+	Cash          bool   `json:"cash,omitempty"`
 }
 
 /** OpenStatements 独立开关和受限只读池，不修改原生连接、不安装迁移。 */
@@ -101,7 +114,7 @@ func OpenStatements(path string) (*service.MetonStatements, func(), error) {
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	result, err := NewStatements(db)
+	result, err := newStatements(db, cfg.Cash)
 	if err != nil {
 		close()
 		return nil, func() {}, err

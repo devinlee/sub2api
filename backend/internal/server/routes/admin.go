@@ -320,8 +320,20 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		admin.POST(service.RestoredGiftRoute+"inspect", h.Admin.User.RestoredGiftHandler("inspect"))
 		admin.POST(service.RestoredGiftRoute+"reconcile", h.Admin.User.RestoredGiftHandler("reconcile"))
 		admin.POST(service.RestoredGiftRoute+"terminate", h.Admin.User.RestoredGiftHandler("terminate"))
+		for _, action := range service.CheckoutActions() {
+			admin.POST(service.CheckoutRoute+action, h.Admin.User.CheckoutHandler(action))
+		}
 		admin.POST("/meton/managed-accounts/:operation/statements/open", h.Admin.User.MetonStatementOpen)
 		admin.POST("/meton/managed-accounts/:operation/statements/page", h.Admin.User.MetonStatementPage)
+		admin.POST("/meton/managed-accounts/:operation/cash-statement/read", h.Admin.User.MetonCashStatement)
+		admin.POST("/meton/managed-accounts/:operation/cash-operations/read", h.Admin.User.MetonCashOperations)
+		admin.POST("/meton/cash-archive/retry", h.Admin.User.MetonCashOriginalRetry)
+		admin.POST("/meton/cash-archive/review-context", h.Admin.User.MetonCashReviewContext)
+		admin.POST("/meton/cash-archive/review-record", h.Admin.User.MetonCashReviewRecord)
+		admin.POST("/meton/cash-archive/review-result", h.Admin.User.MetonCashReviewResult)
+		admin.POST("/meton/cash-archive/retry-result", h.Admin.User.MetonCashOriginalRetryResult)
+		admin.POST("/meton/cash-archive/read", h.Admin.User.MetonCashArchive)
+		admin.POST("/meton/cash-archive/original", h.Admin.User.MetonCashArchiveOriginal)
 		admin.POST("/meton/managed-accounts/:operation/gift-closure/terminate", h.Admin.User.MetonGiftTerminate)
 		admin.POST("/meton/managed-accounts/:operation/gift-closure/reconcile", h.Admin.User.MetonGiftReconcile)
 		admin.GET("/meton/managed-accounts/:operation/model-calls/:caller/:request/execution", h.Admin.User.MetonModelExecution)
@@ -680,6 +692,11 @@ func registerDataManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 }
 
 func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	if service.MetonManagedBuild && h.Admin.Backup != nil {
+		for _, action := range []string{"inspect", "execute", "reconcile", "resume"} {
+			admin.POST(service.BackupRetirementRoute+action, h.Admin.Backup.MetonBackupRetirement(action))
+		}
+	}
 	backup := admin.Group("/backups")
 	{
 		// S3 存储配置

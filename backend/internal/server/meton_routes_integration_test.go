@@ -221,7 +221,7 @@ func nativeRoutes(t *testing.T, completion bool) {
 			router := gin.New()
 			router.RedirectTrailingSlash = false
 			router.RedirectFixedPath = false
-			router.Use(metonManagedIngress(true))
+			router.Use(metonManagedIngress(metonIngressOptions{models: true}))
 			routes.RegisterGatewayRoutes(router, &handler.Handlers{OpenAIGateway: h, MetonText: middleware.MetonTextAuth(entry)}, nil, keys, nil, nil, nil, nil, cfg)
 			var forbidden atomic.Int32
 			for _, p := range []string{"/api/v1/admin/users/1/balance", "/api/v1/payment/orders", "/v1/images/generations", "/responses", "/v1/responses/alias"} {

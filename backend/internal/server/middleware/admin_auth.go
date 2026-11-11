@@ -33,6 +33,10 @@ func adminAuth(
 	auditService *service.AuditLogService,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 收银台的拒绝可能发生在处理器之前，错误响应也遵守同一原事项的缓存约定。
+		if strings.HasPrefix(c.FullPath(), "/api/v1/admin"+service.CheckoutRoute) {
+			c.Header("Cache-Control", "no-store")
+		}
 		// WebSocket upgrade requests cannot set Authorization headers in browsers.
 		// For admin WebSocket endpoints (e.g. Ops realtime), allow passing the JWT via
 		// Sec-WebSocket-Protocol (subprotocol list) using a prefixed token item:
